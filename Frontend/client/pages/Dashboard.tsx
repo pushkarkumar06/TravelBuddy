@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import axios from "axios";
-
+import { Link, useNavigate } from "react-router-dom";
+import axios from "../api/axios"; // using your configured Axios instance
 import { Button } from "@/components/ui/button";
 import FloatingActionButtons from "@/components/FloatingActionButtons";
 import {
@@ -20,74 +19,12 @@ import {
   MapPin,
   Users,
   Settings,
-  Bell,
   Plane,
   Camera,
   Mountain,
-  Map,
-  User,
-  Clock,
 } from "lucide-react";
-
-const upcomingTrips = [
-  {
-    id: 1,
-    destination: "Tokyo, Japan",
-    dates: "Mar 15 - Mar 25, 2024",
-    daysLeft: 12,
-    matchingTravelers: 8,
-  },
-  {
-    id: 2,
-    destination: "Barcelona, Spain",
-    dates: "Apr 10 - Apr 20, 2024",
-    daysLeft: 38,
-    matchingTravelers: 5,
-  },
-];
-
-const recentChats = [
-  {
-    id: 1,
-    activityName: "Hiking Mt. Fuji",
-    lastMessage: "See you at 6 AM tomorrow!",
-    timestamp: "2 min ago",
-    unreadCount: 3,
-    avatar: null,
-  },
-  {
-    id: 2,
-    activityName: "Tokyo Food Tour",
-    lastMessage: "The ramen place was amazing 🍜",
-    timestamp: "15 min ago",
-    unreadCount: 0,
-    avatar: null,
-  },
-  {
-    id: 3,
-    activityName: "Shibuya Night Photography",
-    lastMessage: "Here are my shots from last night",
-    timestamp: "1 hour ago",
-    unreadCount: 1,
-    avatar: null,
-  },
-  {
-    id: 4,
-    activityName: "Co-working in Harajuku",
-    lastMessage: "Great session today everyone!",
-    timestamp: "3 hours ago",
-    unreadCount: 0,
-    avatar: null,
-  },
-  {
-    id: 5,
-    activityName: "Cherry Blossom Viewing",
-    lastMessage: "Perfect weather for hanami 🌸",
-    timestamp: "1 day ago",
-    unreadCount: 2,
-    avatar: null,
-  },
-];
+import Maps from "./Maps";
+import { upcomingTrips } from "@/data/upcomingTrip";
 
 const quickStats = [
   { label: "Active Trips", value: "2", icon: Calendar },
@@ -97,29 +34,46 @@ const quickStats = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [trips, setTrips] = useState<{ id: string; destination: string; date: string }[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
   const [userName, setUserName] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        const res = await axios.get("http://localhost:3000/api/v1/users/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
+        const res = await axios.get("/users/me"); // token is auto-added in axios instance
         const { firstName, lastName } = res.data;
         setUserName(`${firstName} ${lastName}`);
-      } catch (error) {
-        console.error("Failed to fetch user data:", error);
+      } catch (err: any) {
+        console.error("Failed to fetch user data:", err);
+        const status = err.response?.status;
+        if (status === 401) {
+          setError("Session expired. Please login again.");
+          localStorage.removeItem("token");
+          setTimeout(() => navigate("/login"), 1500);
+        } else {
+          setError("Failed to fetch user data. Please try again.");
+        }
+      }
+    };
+    const fetchTrips = async () => {
+      try {
+        const res = await axios.get("/trips/upcoming"); // This hits the backend route
+        setTrips(res.data);
+      } catch (err) {
+        console.error("Failed to fetch trips", err);
+      } finally {
+        setLoadingTrips(false);
       }
     };
 
+    fetchTrips();
+
+
     fetchUser();
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-travel-blue-50 via-white to-travel-green-50">
@@ -157,15 +111,43 @@ export default function Dashboard() {
                 </Link>
               </Button>
             </div>
+
+            {/* Error message if exists */}
+            {error && (
+              <div className="mt-4 p-3 rounded-md bg-red-500/20 text-sm text-white border border-red-400/40">
+                {error}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Other components remain unchanged below */}
-        {/* Quick Stats, Upcoming Trips, Interactive Map, Recent Chats, etc. */}
-        {/* FloatingActionButtons is also included */}
-        {/* You can keep the rest of your existing code here as is */}
+        {/* Future sections: Quick stats, trips, chats etc. */}
         <FloatingActionButtons />
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold">Upcoming Trips</h2>
+
+          <Maps />
+
+          <div className="mt-4">
+            {loadingTrips ? (
+              <p className="text-muted-foreground">Loading trips...</p>
+            ) : trips.length === 0 ? (
+              <p className="text-muted-foreground">No upcoming trips found.</p>
+            ) : (
+              <ul className="space-y-2">
+                {trips.map((trip) => (
+                  <li key={trip.id} className="p-3 border rounded-md shadow-sm bg-white">
+                    <p className="font-medium">{trip.destination}</p>
+                    <p className="text-sm text-muted-foreground">{trip.date}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+          </div>
+        </div>
       </div>
     </div>
+
   );
 }

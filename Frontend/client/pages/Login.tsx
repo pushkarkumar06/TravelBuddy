@@ -63,39 +63,42 @@ export default function Login() {
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!validateForm()) return;
+  if (!validateForm()) return;
+  setIsLoading(true);
 
-    setIsLoading(true);
+  const backendURL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
-    // Simulate API call
-    try {
-const response = await axios.post(
-  `${import.meta.env.VITE_BACKEND_URL}/api/v1/users/login`,
-  {
-    email: formData.email,
-    password: formData.password,
+  try {
+    const response = await axios.post(`${backendURL}/api/v1/users/login`, {
+      email: formData.email,
+      password: formData.password,
+    });
+
+    console.log("Login success:", response.data);
+
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+      navigate("/dashboard");
+    } else {
+      setErrors({ general: "Login succeeded but no token returned." });
+    }
+
+  } catch (error: any) {
+    console.error("Login error:", error);
+
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.errors ||
+      "Login failed. Please try again.";
+
+    setErrors({ general: errorMessage });
+  } finally {
+    setIsLoading(false);
   }
-);
+};
 
-
-  console.log("Login success:", response.data);
-
-  // Optionally store token in localStorage
-  if (response.data.token) {
-    localStorage.setItem("token", response.data.token);
-  }
-
-  navigate("/dashboard");
-} catch (error: any) {
-  console.error("Login error:", error);
-  setErrors({
-    general: error.response?.data?.errors || "Login failed. Please try again.",
-  });
-}
-
-  };
 
   const handleSocialLogin = (provider: string) => {
     console.log(`Login with ${provider}`);

@@ -1,53 +1,61 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
   {
     firstName: {
       type: String,
-      required: true,
-      trim: true,
+      required: [true, "First name is required"],
     },
     lastName: {
       type: String,
-      required: true,
-      trim: true,
+      required: [true, "Last name is required"],
     },
     email: {
       type: String,
-      required: true,
+      required: [true, "Email is required"],
       unique: true,
       lowercase: true,
-      trim: true,
+      match: [/\S+@\S+\.\S+/, "Invalid email"],
     },
     password: {
       type: String,
-      required: true,
-    },
-    isAdmin: {
-      type: Boolean,
-      default: false,
+      required: [true, "Password is required"],
+      minlength: 6,
+      select: false, // Don't return password by default
     },
     bio: {
       type: String,
-      default: "",
+      required: [true, "Bio is required"],
+      minlength: 20,
     },
     location: {
       type: String,
-      default: "",
+      required: [true, "Location is required"],
     },
     interests: {
       type: [String],
-      default: [],
+      validate: [(val) => val.length >= 3, "Select at least 3 interests"],
     },
     profilePicture: {
-      type: String,
-      default: "", // You can store Cloudinary URL or base64 string here
+      type: String, // URL or Cloudinary ID
+      default: "",
     },
   },
-  {
-    timestamps: true, // optional: adds createdAt & updatedAt fields
-  }
+  { timestamps: true }
 );
 
-export const User = mongoose.model("User", userSchema);
-export default User;
+// Hash password before saving
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Method to compare passwords
+userSchema.methods.comparePassword = function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+export default mongoose.model("User", userSchema);

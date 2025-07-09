@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "@/api/axios";
 import { Button } from "@/components/ui/button";
 import FloatingActionButtons from "@/components/FloatingActionButtons";
 import {
@@ -39,107 +40,14 @@ import {
   Waves,
 } from "lucide-react";
 
-const activities = [
-  {
-    id: 1,
-    title: "Mount Fuji Sunrise Hike",
-    description:
-      "Early morning hike to catch the spectacular sunrise from Mount Fuji's peak",
-    host: { name: "Kenji Tanaka", avatar: null, rating: 4.9 },
-    category: "Hiking",
-    date: "2024-03-20",
-    time: "04:00",
-    location: "Mount Fuji, Japan",
-    maxParticipants: 8,
-    currentParticipants: 6,
-    price: "¥3,500",
-    status: "open",
-    tags: ["Adventure", "Nature", "Photography"],
-    icon: Mountain,
-  },
-  {
-    id: 2,
-    title: "Tokyo Street Food Tour",
-    description: "Explore hidden gems and taste authentic Japanese street food",
-    host: { name: "Sarah Chen", avatar: null, rating: 4.8 },
-    category: "Food",
-    date: "2024-03-18",
-    time: "18:00",
-    location: "Shibuya, Tokyo",
-    maxParticipants: 6,
-    currentParticipants: 4,
-    price: "¥2,800",
-    status: "open",
-    tags: ["Food", "Culture", "Local"],
-    icon: Utensils,
-  },
-  {
-    id: 3,
-    title: "Night Photography Walk",
-    description: "Capture Tokyo's neon-lit streets and vibrant nightlife",
-    host: { name: "Alex Rivera", avatar: null, rating: 4.7 },
-    category: "Photography",
-    date: "2024-03-19",
-    time: "20:00",
-    location: "Harajuku, Tokyo",
-    maxParticipants: 5,
-    currentParticipants: 5,
-    price: "¥1,500",
-    status: "full",
-    tags: ["Photography", "Night", "Urban"],
-    icon: Camera,
-  },
-  {
-    id: 4,
-    title: "Co-working & Coffee",
-    description:
-      "Productive work session at a beautiful cafe with mountain views",
-    host: { name: "Emma Wilson", avatar: null, rating: 4.9 },
-    category: "Co-working",
-    date: "2024-03-21",
-    time: "09:00",
-    location: "Kamakura, Japan",
-    maxParticipants: 10,
-    currentParticipants: 7,
-    price: "¥800",
-    status: "open",
-    tags: ["Work", "Networking", "Coffee"],
-    icon: Briefcase,
-  },
-  {
-    id: 5,
-    title: "Traditional Jazz Club Night",
-    description: "Experience authentic Japanese jazz in an intimate setting",
-    host: { name: "Yuki Sato", avatar: null, rating: 4.6 },
-    category: "Music",
-    date: "2024-03-22",
-    time: "21:00",
-    location: "Blue Note Tokyo",
-    maxParticipants: 8,
-    currentParticipants: 3,
-    price: "¥4,200",
-    status: "open",
-    tags: ["Music", "Culture", "Nightlife"],
-    icon: Music,
-  },
-  {
-    id: 6,
-    title: "Surfing Lesson in Shonan",
-    description:
-      "Learn to surf with experienced instructors at beautiful Shonan Beach",
-    host: { name: "Marco Silva", avatar: null, rating: 4.8 },
-    category: "Surfing",
-    date: "2024-03-23",
-    time: "08:00",
-    location: "Shonan Beach, Japan",
-    maxParticipants: 6,
-    currentParticipants: 2,
-    price: "¥5,500",
-    status: "open",
-    tags: ["Surfing", "Beach", "Lesson"],
-    icon: Waves,
-  },
-];
+const iconMap: Record<string, any> = {
+  Hiking: Mountain,
+  Food: Utensils,
+  Photography: Camera,
+  "Co-working": Briefcase,
+  Music: Music,
+  Surfing: Waves,
+};
 
 const categories = [
   "All",
@@ -150,19 +58,54 @@ const categories = [
   "Music",
   "Surfing",
 ];
+import { useAuth } from "../../context/AuthContext";
+
+
 
 export default function Activities() {
+  const [activities, setActivities] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedDate, setSelectedDate] = useState("");
-  const [joinedActivities, setJoinedActivities] = useState<number[]>([2, 4]);
+  const [joinedActivities, setJoinedActivities] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { userId, isAuthenticated } = useAuth();
+  console.log("User ID:", userId);
+console.log("Authenticated:", isAuthenticated);
 
-  const handleJoinActivity = (activityId: number) => {
-    setJoinedActivities([...joinedActivities, activityId]);
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        const res = await axios.get("/trips/activities");
+        const dataWithIcons = res.data.data.map((activity: any) => ({
+          ...activity,
+          icon: iconMap[activity.category] || Mountain,
+          host: {
+            name: `${activity.host?.firstName || "Unknown"} ${
+              activity.host?.lastName || ""
+            }`,
+            avatar: activity.host?.profilePicture || null,
+            rating: activity.host?.rating || 4.8,
+          },
+        }));
+        setActivities(dataWithIcons);
+      } catch (err) {
+        console.error("Failed to fetch activities:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivities();
+  }, []);
+
+  const handleJoinActivity = (id: string) => {
+    setJoinedActivities((prev) => [...prev, id]);
   };
 
-  const handleLeaveActivity = (activityId: number) => {
-    setJoinedActivities(joinedActivities.filter((id) => id !== activityId));
+  const handleLeaveActivity = (id: string) => {
+    setJoinedActivities((prev) => prev.filter((a) => a !== id));
   };
 
   const filteredActivities = activities.filter((activity) => {
@@ -179,28 +122,29 @@ export default function Activities() {
     return matchesSearch && matchesCategory && matchesDate;
   });
 
-  const myActivities = activities.filter((activity) =>
-    joinedActivities.includes(activity.id),
-  );
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const myActivities = activities.filter(
+  (a) =>
+    a.host?._id === userId ||  // adjust this line
+    a.participants?.some((p: any) => p._id === userId)
+);
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
-  };
 
   const ActivityCard = ({
     activity,
     showJoinButton = true,
   }: {
-    activity: (typeof activities)[0];
+    activity: any;
     showJoinButton?: boolean;
   }) => {
     const Icon = activity.icon;
-    const isJoined = joinedActivities.includes(activity.id);
-    const isFull = activity.status === "full";
+    const isJoined = joinedActivities.includes(activity._id);
+    const isFull =
+      activity.currentParticipants >= activity.maxParticipants;
     const spotsLeft = activity.maxParticipants - activity.currentParticipants;
 
     return (
@@ -227,7 +171,7 @@ export default function Activities() {
               </div>
             </div>
             <div className="text-right">
-              <div className="font-semibold text-primary">{activity.price}</div>
+              <div className="font-semibold text-primary">₹{activity.price}</div>
             </div>
           </div>
         </CardHeader>
@@ -248,8 +192,7 @@ export default function Activities() {
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-muted-foreground" />
               <span>
-                {activity.currentParticipants}/{activity.maxParticipants}{" "}
-                participants
+                {activity.currentParticipants}/{activity.maxParticipants} participants
               </span>
               {spotsLeft <= 2 && spotsLeft > 0 && (
                 <Badge variant="outline" className="text-xs">
@@ -266,7 +209,7 @@ export default function Activities() {
                 <AvatarFallback className="text-xs">
                   {activity.host.name
                     .split(" ")
-                    .map((n) => n[0])
+                    .map((n: string) => n[0])
                     .join("")}
                 </AvatarFallback>
               </Avatar>
@@ -282,7 +225,7 @@ export default function Activities() {
             </div>
 
             <div className="flex flex-wrap gap-1">
-              {activity.tags.slice(0, 2).map((tag) => (
+              {(activity.tags || []).slice(0, 2).map((tag: string) => (
                 <Badge key={tag} variant="outline" className="text-xs">
                   {tag}
                 </Badge>
@@ -298,13 +241,13 @@ export default function Activities() {
                     variant="outline"
                     className="flex-1"
                     size="sm"
-                    onClick={() => handleLeaveActivity(activity.id)}
+                    onClick={() => handleLeaveActivity(activity._id)}
                   >
                     Leave Activity
                   </Button>
                   <Button asChild className="flex-1" size="sm">
                     <Link
-                      to={`/chat/${activity.id}`}
+                      to={`/chat/${activity._id}`}
                       className="flex items-center gap-2"
                     >
                       <MessageCircle className="w-4 h-4" />
@@ -317,11 +260,9 @@ export default function Activities() {
                   className="w-full"
                   size="sm"
                   disabled={isFull}
-                  onClick={() => handleJoinActivity(activity.id)}
+                  onClick={() => handleJoinActivity(activity._id)}
                 >
-                  {isFull
-                    ? "Activity Full"
-                    : `Join Activity - ${activity.price}`}
+                  {isFull ? "Activity Full" : `Join Activity - ₹${activity.price}`}
                 </Button>
               )}
             </div>
@@ -334,7 +275,6 @@ export default function Activities() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -361,7 +301,6 @@ export default function Activities() {
           </TabsList>
 
           <TabsContent value="discover" className="space-y-6">
-            {/* Filters */}
             <Card>
               <CardContent className="p-6">
                 <div className="grid md:grid-cols-4 gap-4">
@@ -428,14 +367,13 @@ export default function Activities() {
               </CardContent>
             </Card>
 
-            {/* Activities Grid */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredActivities.map((activity) => (
-                <ActivityCard key={activity.id} activity={activity} />
+                <ActivityCard key={activity._id} activity={activity} />
               ))}
             </div>
 
-            {filteredActivities.length === 0 && (
+            {!loading && filteredActivities.length === 0 && (
               <Card>
                 <CardContent className="text-center py-12">
                   <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -474,7 +412,7 @@ export default function Activities() {
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myActivities.map((activity) => (
                   <ActivityCard
-                    key={activity.id}
+                    key={activity._id}
                     activity={activity}
                     showJoinButton={false}
                   />

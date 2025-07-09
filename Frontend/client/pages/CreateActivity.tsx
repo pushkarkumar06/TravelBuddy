@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+ import axios from "@/api/axios";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -140,12 +141,17 @@ export default function CreateActivity() {
       setCurrentStep(currentStep - 1);
     }
   };
+ // your configured axios instance
 
-  const handleSubmit = () => {
-    // Here you would typically submit to your backend
-    console.log("Activity created:", formData);
-    navigate("/activities");
-  };
+const handleSubmit = async () => {
+  try {
+    await axios.post("/trips/", formData);
+    navigate("/activites"); // after success
+  } catch (error) {
+    console.error("Activity submission failed:", error);
+    alert("Failed to create activity. Try again.");
+  }
+};
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";

@@ -1,6 +1,7 @@
 // index.js
 import express from "express";
 import users from "./routes/user_route.js";
+import tripRoutes from "./routes/trip_routes.js";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -35,6 +36,8 @@ await connectToMongoDB(); // ✅ Use await in top-level module (ESM)
 
 // Mount user routes
 app.use("/api/v1/users", users);
+app.use("/api/v1/trips", tripRoutes);
+
 
 // Start server
 app.listen(port, () => {
