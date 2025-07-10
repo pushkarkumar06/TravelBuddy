@@ -146,7 +146,7 @@ export default function CreateActivity() {
 const handleSubmit = async () => {
   try {
     await axios.post("/trips/", formData);
-    navigate("/activites"); // after success
+    navigate("/trips"); // after success
   } catch (error) {
     console.error("Activity submission failed:", error);
     alert("Failed to create activity. Try again.");

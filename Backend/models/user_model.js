@@ -41,6 +41,14 @@ const userSchema = new mongoose.Schema(
       type: String, // URL or Cloudinary ID
       default: "",
     },
+
+    // 👇 Added for tracking joined activities
+    joinedActivities: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Trip", // Ensure this matches your activity schema model name
+      }
+    ]
   },
   { timestamps: true }
 );
@@ -59,3 +67,4 @@ userSchema.methods.comparePassword = function (candidatePassword) {
 };
 
 export default mongoose.model("User", userSchema);
+

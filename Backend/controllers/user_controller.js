@@ -130,3 +130,15 @@ export const logout = (req, res) => {
     console.log("Error in logout", error);
   }
 };
+
+// controllers/userController.js
+export const getAllTravelersExceptMe = async (req, res) => {
+  try {
+    const { id: currentUserId } = req.user;
+    const travelers = await User.find({ _id: { $ne: currentUserId } });
+    res.status(200).json({ data: travelers });
+  } catch (error) {
+    console.error("Error fetching travelers:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

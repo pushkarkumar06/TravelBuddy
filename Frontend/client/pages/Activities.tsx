@@ -294,9 +294,9 @@ console.log("Authenticated:", isAuthenticated);
 
         <Tabs defaultValue="discover" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="discover">Discover</TabsTrigger>
+            <TabsTrigger value="discover">Explore</TabsTrigger>
             <TabsTrigger value="my-activities">
-              My Activities ({myActivities.length})
+              Joined Activities ({myActivities.length})
             </TabsTrigger>
           </TabsList>
 

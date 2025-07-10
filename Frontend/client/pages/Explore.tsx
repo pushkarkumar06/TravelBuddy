@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "@/api/axios";
+import { useAuth } from "../../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import FloatingActionButtons from "@/components/FloatingActionButtons";
 import {
@@ -13,13 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+  Checkbox
+} from "@/components/ui/checkbox";
 import {
   MapPin,
   Calendar,
@@ -30,117 +27,52 @@ import {
   Map,
 } from "lucide-react";
 
-const mockUsers = [
-  {
-    id: 1,
-    name: "Sarah Chen",
-    bio: "Digital nomad exploring Southeast Asia",
-    location: "Bangkok, Thailand",
-    avatar: null,
-    interests: ["Backpacking", "Food", "Co-working"],
-    nextDestination: "Chiang Mai",
-  },
-  {
-    id: 2,
-    name: "Alex Rivera",
-    bio: "Adventure photographer seeking hiking buddies",
-    location: "Barcelona, Spain",
-    avatar: null,
-    interests: ["Hiking", "Photography", "Museums"],
-    nextDestination: "Lisbon",
-  },
-  {
-    id: 3,
-    name: "Emma Johnson",
-    bio: "Solo traveler looking for cultural experiences",
-    location: "Tokyo, Japan",
-    avatar: null,
-    interests: ["Culture", "Food", "Art"],
-    nextDestination: "Kyoto",
-  },
-  {
-    id: 4,
-    name: "Marco Silva",
-    bio: "Surf enthusiast and beach lover",
-    location: "Lisbon, Portugal",
-    avatar: null,
-    interests: ["Surfing", "Beach", "Music"],
-    nextDestination: "Morocco",
-  },
-  {
-    id: 5,
-    name: "Zoe Kim",
-    bio: "Foodie exploring local cuisines",
-    location: "Seoul, South Korea",
-    avatar: null,
-    interests: ["Food", "Cooking", "Markets"],
-    nextDestination: "Vietnam",
-  },
-  {
-    id: 6,
-    name: "Jake Thompson",
-    bio: "Remote worker seeking co-working spaces",
-    location: "Mexico City, Mexico",
-    avatar: null,
-    interests: ["Co-working", "Tech", "Startups"],
-    nextDestination: "Costa Rica",
-  },
-];
-
-const interests = [
-  "Hiking",
-  "Co-working",
-  "Food",
-  "Backpacking",
-  "Photography",
-  "Museums",
-  "Culture",
-  "Art",
-  "Surfing",
-  "Beach",
-  "Music",
-  "Cooking",
-  "Markets",
-  "Tech",
-  "Startups",
+const interestsList = [
+  "Hiking", "Co-working", "Food", "Backpacking", "Photography", "Museums",
+  "Culture", "Art", "Surfing", "Beach", "Music", "Cooking", "Markets", "Tech", "Startups",
 ];
 
 export default function Explore() {
+  const { userId } = useAuth();
+  const [users, setUsers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleInterestChange = (interest: string, checked: boolean) => {
-    if (checked) {
-      setSelectedInterests([...selectedInterests, interest]);
-    } else {
-      setSelectedInterests(selectedInterests.filter((i) => i !== interest));
+  const fetchUsers = async () => {
+    try {
+      const params: any = {};
+      if (searchQuery) params.search = searchQuery;
+      if (selectedInterests.length > 0) params.interests = selectedInterests.join(",");
+
+      const res = await axios.get("/users/explore", { params });
+      setUsers(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredUsers = mockUsers.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.nextDestination.toLowerCase().includes(searchQuery.toLowerCase());
+  useEffect(() => {
+    fetchUsers();
+  }, [searchQuery, selectedInterests]);
 
-    const matchesInterests =
-      selectedInterests.length === 0 ||
-      selectedInterests.some((interest) => user.interests.includes(interest));
+  const handleInterestChange = (interest: string, checked: boolean) => {
+    setSelectedInterests(prev =>
+      checked ? [...prev, interest] : prev.filter(i => i !== interest)
+    );
+  };
 
-    return matchesSearch && matchesInterests;
-  });
+  const filteredUsers = users.filter(user => user._id !== userId); // Avoid showing self
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Explore Travelers
-          </h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Explore Travelers</h1>
           <p className="text-muted-foreground text-lg">
-            Discover fellow travelers near you or heading to similar
-            destinations
+            Discover fellow travelers near you or heading to similar destinations
           </p>
         </div>
 
@@ -150,15 +82,14 @@ export default function Explore() {
             <Card className="sticky top-24">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2">
-                  <Filter className="w-5 h-5" />
-                  Filters
+                  <Filter className="w-5 h-5" /> Filters
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Search */}
                 <div>
                   <Label htmlFor="search" className="text-sm font-medium">
-                    Search Location
+                    Search Location or Destination
                   </Label>
                   <div className="relative mt-2">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -172,24 +103,12 @@ export default function Explore() {
                   </div>
                 </div>
 
-                {/* Date Range */}
-                <div>
-                  <Label className="text-sm font-medium">Travel Dates</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <Input type="date" />
-                    <Input type="date" />
-                  </div>
-                </div>
-
                 {/* Interests */}
                 <div>
                   <Label className="text-sm font-medium">Interests</Label>
                   <div className="grid grid-cols-1 gap-2 mt-2 max-h-48 overflow-y-auto">
-                    {interests.map((interest) => (
-                      <div
-                        key={interest}
-                        className="flex items-center space-x-2"
-                      >
+                    {interestsList.map((interest) => (
+                      <div key={interest} className="flex items-center space-x-2">
                         <Checkbox
                           id={interest}
                           checked={selectedInterests.includes(interest)}
@@ -197,10 +116,7 @@ export default function Explore() {
                             handleInterestChange(interest, checked as boolean)
                           }
                         />
-                        <Label
-                          htmlFor={interest}
-                          className="text-sm cursor-pointer"
-                        >
+                        <Label htmlFor={interest} className="text-sm cursor-pointer">
                           {interest}
                         </Label>
                       </div>
@@ -230,15 +146,13 @@ export default function Explore() {
             {/* Map Placeholder */}
             <Card>
               <CardContent className="p-0">
-                <div className="aspect-video bg-gradient-to-br from-travel-blue-50 to-travel-green-50 rounded-lg flex items-center justify-center">
+                <div className="aspect-video bg-muted flex items-center justify-center rounded-lg">
                   <div className="text-center">
                     <Map className="w-16 h-16 text-primary mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-foreground mb-2">
                       Interactive Map
                     </h3>
-                    <p className="text-muted-foreground">
-                      Map integration coming soon
-                    </p>
+                    <p className="text-muted-foreground">Map integration coming soon</p>
                   </div>
                 </div>
               </CardContent>
@@ -247,54 +161,38 @@ export default function Explore() {
             {/* User Cards */}
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-semibold text-foreground">
-                  Travelers Near You
-                </h2>
-                <p className="text-muted-foreground">
-                  {filteredUsers.length} travelers found
-                </p>
+                <h2 className="text-2xl font-semibold text-foreground">Travelers Near You</h2>
+                <p className="text-muted-foreground">{filteredUsers.length} travelers found</p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
                 {filteredUsers.map((user) => (
-                  <Card
-                    key={user.id}
-                    className="hover:shadow-lg transition-all duration-300 hover:scale-105"
-                  >
+                  <Card key={user._id} className="hover:shadow-lg transition-all hover:scale-105">
                     <CardHeader className="pb-4">
                       <div className="flex items-start gap-4">
                         <Avatar className="w-12 h-12">
-                          <AvatarImage src={user.avatar || undefined} />
+                          <AvatarImage src={user.profilePicture || undefined} />
                           <AvatarFallback>
-                            {user.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
+                            {user.firstName[0]}{user.lastName[0]}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <CardTitle className="text-lg">{user.name}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {user.firstName} {user.lastName}
+                          </CardTitle>
                           <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                            <MapPin className="w-3 h-3" />
-                            {user.location}
+                            <MapPin className="w-3 h-3" /> {user.location}
                           </div>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <CardDescription>{user.bio}</CardDescription>
-
                       <div>
-                        <p className="text-sm font-medium text-foreground mb-2">
-                          Next destination: {user.nextDestination}
-                        </p>
+                        <p className="text-sm font-medium mb-2">Interests</p>
                         <div className="flex flex-wrap gap-1">
-                          {user.interests.map((interest) => (
-                            <Badge
-                              key={interest}
-                              variant="secondary"
-                              className="text-xs"
-                            >
+                          {user.interests.map((interest: string) => (
+                            <Badge key={interest} variant="secondary" className="text-xs">
                               {interest}
                             </Badge>
                           ))}
@@ -303,12 +201,10 @@ export default function Explore() {
 
                       <div className="flex gap-2 pt-2">
                         <Button className="flex-1" size="sm">
-                          <User className="w-4 h-4 mr-2" />
-                          View Profile
+                          <User className="w-4 h-4 mr-2" /> View Profile
                         </Button>
                         <Button variant="outline" size="sm" className="flex-1">
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          Invite to Activity
+                          <MessageCircle className="w-4 h-4 mr-2" /> Invite to Activity
                         </Button>
                       </div>
                     </CardContent>
@@ -320,9 +216,7 @@ export default function Explore() {
                 <Card>
                   <CardContent className="text-center py-12">
                     <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      No travelers found
-                    </h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">No travelers found</h3>
                     <p className="text-muted-foreground">
                       Try adjusting your search criteria or filters
                     </p>
@@ -338,3 +232,4 @@ export default function Explore() {
     </div>
   );
 }
+
