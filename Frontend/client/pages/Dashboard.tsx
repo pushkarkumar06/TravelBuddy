@@ -59,16 +59,23 @@ export default function Dashboard() {
       }
     };
     const fetchTrips = async () => {
-      try {
-        const res = await axios.get("/trips/upcoming"); // This hits the backend route
-        setTrips(res.data);
-      } catch (err) {
-        console.error("Failed to fetch trips", err);
-      } finally {
-        setLoadingTrips(false);
-      }
-    };
+  try {
+    const res = await axios.get("/trips/activities/my-upcoming-trips");
+    const rawTrips = res.data?.data || [];
 
+    const formatted = rawTrips.map((trip: any) => ({
+      id: trip._id,
+      destination: trip.location, // ⚠️ backend field is `location`
+      date: new Date(trip.date).toISOString().split("T")[0], // Format to YYYY-MM-DD
+    }));
+
+    setTrips(formatted);
+  } catch (err) {
+    console.error("Failed to fetch trips", err);
+  } finally {
+    setLoadingTrips(false);
+  }
+};
     fetchTrips();
 
 

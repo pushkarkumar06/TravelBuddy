@@ -18,6 +18,7 @@ import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Notification from "./pages/Notifcation";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "../context/AuthContext";
@@ -46,6 +47,7 @@ const AppLayout = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/about" element={<About />} />
+          <Route path="/notifications" element={<Notification />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

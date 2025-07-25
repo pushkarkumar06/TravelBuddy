@@ -1,8 +1,12 @@
+// ⛔️ DO NOT MODIFY THIS HEADER UNLESS YOU CHANGE FILE STRUCTURE
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "@/api/axios";
 import { Button } from "@/components/ui/button";
+// import { toast } from 'react-hot-toast';
 import FloatingActionButtons from "@/components/FloatingActionButtons";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   Card,
   CardContent,
@@ -39,6 +43,7 @@ import {
   Music,
   Waves,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 const iconMap: Record<string, any> = {
   Hiking: Mountain,
@@ -58,27 +63,29 @@ const categories = [
   "Music",
   "Surfing",
 ];
-import { useAuth } from "../../context/AuthContext";
-
-
 
 export default function Activities() {
   const [activities, setActivities] = useState<any[]>([]);
+  const [joinedActivitiesData, setJoinedActivitiesData] = useState<any[]>([]);
+  const [createdActivities, setCreatedActivities] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedDate, setSelectedDate] = useState("");
   const [joinedActivities, setJoinedActivities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const { userId, isAuthenticated } = useAuth();
-  console.log("User ID:", userId);
-console.log("Authenticated:", isAuthenticated);
 
 
-  useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        const res = await axios.get("/trips/activities");
-        const dataWithIcons = res.data.data.map((activity: any) => ({
+  const fetchAll = async () => {
+    try {
+      const [exploreRes, joinedRes, createdRes] = await Promise.all([
+        axios.get("/trips/activities"), // ✅ Explore
+        axios.get("/trips/activities/my-joined-trips"), // ✅ Joined
+        axios.get("/trips/my-activities"), // ✅ Created
+      ]);
+
+      const format = (data: any[]) =>
+        data.map((activity: any) => ({
           ...activity,
           icon: iconMap[activity.category] || Mountain,
           host: {
@@ -89,24 +96,45 @@ console.log("Authenticated:", isAuthenticated);
             rating: activity.host?.rating || 4.8,
           },
         }));
-        setActivities(dataWithIcons);
-      } catch (err) {
-        console.error("Failed to fetch activities:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchActivities();
-  }, []);
-
-  const handleJoinActivity = (id: string) => {
-    setJoinedActivities((prev) => [...prev, id]);
+      setActivities(format(exploreRes.data.data));
+      setJoinedActivitiesData(format(joinedRes.data.data));
+      setCreatedActivities(format(createdRes.data.data));
+    } catch (err) {
+      console.error("Failed to fetch activities:", err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+  fetchAll();
+}, []);
+
+  const handleJoin = async (activityId: string) => {
+  try {
+    await axios.post(`/trips/activities/${activityId}/join`);
+    toast.success("Joined successfully!");
+
+    // ✅ Refetch all activities to refresh the UI
+    fetchAll();
+  } catch (err) {
+    console.error("Error joining activity:", err);
+    toast.error("Failed to join activity");
+  }
+};
+
 
   const handleLeaveActivity = (id: string) => {
     setJoinedActivities((prev) => prev.filter((a) => a !== id));
   };
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
 
   const filteredActivities = activities.filter((activity) => {
     const matchesSearch =
@@ -121,18 +149,6 @@ console.log("Authenticated:", isAuthenticated);
 
     return matchesSearch && matchesCategory && matchesDate;
   });
-
-  const myActivities = activities.filter(
-  (a) =>
-    a.host?._id === userId ||  // adjust this line
-    a.participants?.some((p: any) => p._id === userId)
-);
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
 
   const ActivityCard = ({
     activity,
@@ -260,7 +276,7 @@ console.log("Authenticated:", isAuthenticated);
                   className="w-full"
                   size="sm"
                   disabled={isFull}
-                  onClick={() => handleJoinActivity(activity._id)}
+                  onClick={() => handleJoin(activity._id)}
                 >
                   {isFull ? "Activity Full" : `Join Activity - ₹${activity.price}`}
                 </Button>
@@ -292,22 +308,20 @@ console.log("Authenticated:", isAuthenticated);
           </Button>
         </div>
 
-        <Tabs defaultValue="discover" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="discover">Explore</TabsTrigger>
-            <TabsTrigger value="my-activities">
-              Joined Activities ({myActivities.length})
-            </TabsTrigger>
+        <Tabs defaultValue="explore" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+            <TabsTrigger value="explore">Explore</TabsTrigger>
+            <TabsTrigger value="joined">Joined</TabsTrigger>
+            <TabsTrigger value="created">Created By Me</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="discover" className="space-y-6">
+          <TabsContent value="explore" className="space-y-6">
+            {/* Filters */}
             <Card>
               <CardContent className="p-6">
                 <div className="grid md:grid-cols-4 gap-4">
                   <div>
-                    <Label htmlFor="search" className="text-sm font-medium">
-                      Search Activities
-                    </Label>
+                    <Label htmlFor="search">Search Activities</Label>
                     <div className="relative mt-2">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -321,7 +335,7 @@ console.log("Authenticated:", isAuthenticated);
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium">Category</Label>
+                    <Label>Category</Label>
                     <Select
                       value={selectedCategory}
                       onValueChange={setSelectedCategory}
@@ -340,7 +354,7 @@ console.log("Authenticated:", isAuthenticated);
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium">Date</Label>
+                    <Label>Date</Label>
                     <Input
                       type="date"
                       value={selectedDate}
@@ -367,50 +381,62 @@ console.log("Authenticated:", isAuthenticated);
               </CardContent>
             </Card>
 
+            {/* Explore List */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredActivities.map((activity) => (
                 <ActivityCard key={activity._id} activity={activity} />
               ))}
             </div>
-
-            {!loading && filteredActivities.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    No activities found
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    Try adjusting your search criteria or create a new activity
-                  </p>
-                  <Button asChild>
-                    <Link to="/create">Create New Activity</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
 
-          <TabsContent value="my-activities" className="space-y-6">
-            {myActivities.length === 0 ? (
+          <TabsContent value="joined">
+            {joinedActivitiesData.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-12">
                   <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">
-                    No joined activities yet
+                    You haven't joined any activities yet
                   </h3>
                   <p className="text-muted-foreground mb-6">
-                    Start exploring and join activities to connect with fellow
-                    travelers
+                    Explore some activities to get started!
                   </p>
                   <Button asChild>
-                    <Link to="/activities">Discover Activities</Link>
+                    <Link to="/activities">Browse Activities</Link>
                   </Button>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myActivities.map((activity) => (
+                {joinedActivitiesData.map((activity) => (
+                  <ActivityCard
+                    key={activity._id}
+                    activity={activity}
+                    showJoinButton={false}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="created">
+            {createdActivities.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Plus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    No created activities
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    Create and host your own experiences.
+                  </p>
+                  <Button asChild>
+                    <Link to="/create">Create Activity</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {createdActivities.map((activity) => (
                   <ActivityCard
                     key={activity._id}
                     activity={activity}

@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema(
     joinedActivities: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Trip", // Ensure this matches your activity schema model name
+        ref: "Activity", // Ensure this matches your activity schema model name
       }
     ]
   },

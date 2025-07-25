@@ -47,7 +47,7 @@ export default function MyTrips() {
 
   const fetchTrips = async () => {
     try {
-      const res = await axios.get("/trips/my-activities");
+      const res = await axios.get("/trips/activities/my-upcoming-trips");
       console.log("Fetched:", res.data.data);
       setTrips(res.data.data || []);
     } catch (err) {

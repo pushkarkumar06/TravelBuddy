@@ -1,21 +1,26 @@
 import Activity from "../models/trip_model.js";
 import User from "../models/user_model.js";
+import mongoose from "mongoose";
 
 export const getUpcomingTrips = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
 
-    const trips = await Trip.find({
-      user: userId,
+    const activities = await Activity.find({
       date: { $gte: new Date() },
-    }).sort("date");
+      $or: [
+        { host: userId },
+        { participants: userId }
+      ]
+    }).sort({ date: 1 });
 
-    res.json(trips);
+    res.status(200).json({ success: true, data: activities });
   } catch (err) {
     console.error("Error fetching upcoming trips:", err.message);
     res.status(500).json({ message: "Failed to fetch trips." });
   }
 };
+
 
 
 export const createTrip = async (req, res) => {
@@ -57,15 +62,14 @@ export const getMyActivities = async (req, res) => {
 // Controller: getAllActivities
 export const getAllActivities = async (req, res) => {
   try {
-    const currentUserId = req.user?.id || req.user?._id;
+    const currentUserId = req.user._id;
 
-    if (!currentUserId) {
-      return res.status(401).json({ message: "Unauthorized. User ID missing." });
-    }
-
-    const activities = await Activity.find({ host: { $ne: currentUserId } })
-      .populate("host", "firstName lastName profilePicture rating")
-      .populate("participants", "_id firstName lastName");
+    const activities = await Activity.find({ 
+      host: { $ne: currentUserId },                      // not created by me
+      participants: { $ne: currentUserId }               // not joined by me
+    })
+    .populate("host", "firstName lastName profilePicture rating")
+    .populate("participants", "_id firstName lastName");
 
     res.status(200).json({ data: activities });
   } catch (err) {
@@ -77,34 +81,64 @@ export const getAllActivities = async (req, res) => {
 
 export const joinActivity = async (req, res) => {
   try {
-    const { activityId } = req.params;
-    const userId = req.user._id; // Or from req.body or context
+    const activityId = req.params.id;
+    const userId = req.user._id;
 
+    // Validate activity ID
+    if (!mongoose.Types.ObjectId.isValid(activityId)) {
+      return res.status(400).json({ message: "Invalid activity ID" });
+    }
+
+    // Fetch the activity
     const activity = await Activity.findById(activityId);
     if (!activity) {
       return res.status(404).json({ message: "Activity not found" });
     }
 
-    if (activity.participants.includes(userId)) {
-      return res.status(400).json({ message: "Already joined" });
+    // Check if user already joined
+    if (activity.participants.some(participantId => participantId.toString() === userId.toString())) {
+      return res.status(400).json({ message: "You have already joined this activity." });
     }
 
+    // Check if activity is full
     if (activity.currentParticipants >= activity.maxParticipants) {
-      return res.status(400).json({ message: "Activity is full" });
+      return res.status(400).json({ message: "This activity is full." });
     }
 
+    // Add user to activity
     activity.participants.push(userId);
     activity.currentParticipants += 1;
     await activity.save();
 
-    // Also add to user's joinedActivities
+    // Add activity to user's joinedActivities
     await User.findByIdAndUpdate(userId, {
       $addToSet: { joinedActivities: activityId },
     });
 
-    res.status(200).json({ message: "Successfully joined activity" });
+    res.status(200).json({ message: "Successfully joined the activity." });
   } catch (err) {
-    console.error("Join activity error:", err);
-    res.status(500).json({ message: "Server error joining activity" });
+    console.error("Error joining activity:", err);
+    res.status(500).json({ message: "Server error. Please try again." });
+  }
+};
+
+export const getJoinedActivities = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch user's joinedActivities array
+    const user = await User.findById(userId).populate({
+      path: "joinedActivities",
+      match: { host: { $ne: userId } }, // Optional: exclude own hosted
+      options: { sort: { date: 1 } }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: user.joinedActivities || []
+    });
+  } catch (err) {
+    console.error("Get joined activities error:", err);
+    res.status(500).json({ message: "Failed to fetch joined activities" });
   }
 };

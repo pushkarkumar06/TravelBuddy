@@ -3,6 +3,7 @@ import axios from "@/api/axios";
 import { useAuth } from "../../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import FloatingActionButtons from "@/components/FloatingActionButtons";
+import InviteModal from "@/components/InviteModal";
 import {
   Card,
   CardContent,
@@ -38,6 +39,9 @@ export default function Explore() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [targetUserId, setTargetUserId] = useState<string | null>(null);
+
 
   const fetchUsers = async () => {
     try {
@@ -203,9 +207,18 @@ export default function Explore() {
                         <Button className="flex-1" size="sm">
                           <User className="w-4 h-4 mr-2" /> View Profile
                         </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            setTargetUserId(user._id);
+                            setInviteModalOpen(true);
+                          }}
+                        >
                           <MessageCircle className="w-4 h-4 mr-2" /> Invite to Activity
                         </Button>
+
                       </div>
                     </CardContent>
                   </Card>
@@ -229,6 +242,13 @@ export default function Explore() {
 
         <FloatingActionButtons showCreate={false} />
       </div>
+      {targetUserId && (
+  <InviteModal
+    isOpen={inviteModalOpen}
+    onClose={() => setInviteModalOpen(false)}
+    targetUserId={targetUserId}
+  />
+)}
     </div>
   );
 }
